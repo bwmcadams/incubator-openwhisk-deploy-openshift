@@ -84,7 +84,7 @@ completes successfully, your cluster is ready.
 
 Once your cluster is ready, you need to configure your `wsk` binary.
 If necessary,
-[download it](https://github.com/projectodd/openwhisk-openshift/releases/tag/latest),
+[download it](https://github.com/apache/incubator-openwhisk-deploy-openshift/releases/tag/latest),
 unpack it, ensure it's in your PATH, and:
 
     AUTH_SECRET=$(oc get secret whisk.auth -o yaml | grep "system:" | awk '{print $2}' | base64 --decode)
@@ -98,7 +98,7 @@ avoid the validation error triggered by the self-signed cert in the
     wsk -i action invoke /whisk.system/utils/echo -p message hello -b
 
 If either fails, ensure you have the latest
-[wsk](https://github.com/projectodd/openwhisk-openshift/releases/latest)
+[wsk](https://github.com/apache/incubator-openwhisk-deploy-openshift/releases/latest)
 installed.
 
 ### Alarms
