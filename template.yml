@@ -9,8 +9,8 @@ metadata:
     tags: serverless, openwhisk
     openshift.io/long-description: This template provides a small OpenWhisk installation. Data is not stored on persistent storage, so any restart of the service will result in all data being lost.
     openshift.io/provider-display-name: Red Hat, Inc.
-    openshift.io/documentation-url: https://github.com/projectodd/openwhisk-openshift/
-    openshift.io/support-url: https://github.com/projectodd/openwhisk-openshift/issues
+    openshift.io/documentation-url: https://github.com/apache/incubator-openwhisk-deploy-openshift
+    openshift.io/support-url: https://github.com/apache/incubator-openwhisk-deploy-openshift/issues
 message: "To get started download the `wsk` CLI from https://github.com/apache/incubator-openwhisk-cli/releases/\n\nYour OpenWhisk authentication token: ${WHISK_SYSTEM_AUTH}\n\nYour OpenWhisk api endpoint can be found in the console UI after closing the template wizard.\n\nConfigure your `wsk` client with `wsk property set --auth <your_auth> --apihost <your_apihost>`"
 labels:
   template: openwhisk-ephemeral-template
@@ -179,6 +179,9 @@ parameters:
   description: Default memory an action requests if unspecified.
   value: "256 m"
   required: true
+- name: WHISK_INFO_DATE
+  description: The date of the OpenWhisk build
+  value: "2018-01-01T00:00Z"
 - name: WHISK_KAFKA_REPLICATION_FACTOR
   description: Replication factor for all OpenWhisk topics
   value: "1"
@@ -193,7 +196,7 @@ parameters:
   required: true
 - name: OPENWHISK_VERSION
   description: The DockerHub tag for openwhisk/{controller,invoker}
-  value: "rhdemo-9717f07a"
+  value: "latest"
   required: true
 - name: PROJECTODD_VERSION
   description: The DockerHub tag for projectodd images
@@ -241,7 +244,9 @@ objects:
                   {
                       "kind": "nodejs",
                       "image": {
-                          "name": "action-nodejs-6"
+                          "prefix": "openwhisk",
+                          "name": "nodejsaction",
+                          "tag": "latest"
                       },
                       "deprecated": true
                   },
@@ -249,7 +254,9 @@ objects:
                       "kind": "nodejs:6",
                       "default": true,
                       "image": {
-                          "name": "action-nodejs-6"
+                          "prefix": "openwhisk",
+                          "name": "nodejs6action",
+                          "tag": "latest"
                       },
                       "deprecated": false
                   },
@@ -257,7 +264,9 @@ objects:
                       "kind": "nodejs:8",
                       "default": false,
                       "image": {
-                          "name": "action-nodejs-8"
+                          "prefix": "openwhisk",
+                          "name": "action-nodejs-v8",
+                          "tag": "latest"
                       },
                       "deprecated": false
                   }
@@ -266,7 +275,9 @@ objects:
                   {
                       "kind": "python",
                       "image": {
-                          "name": "action-python-2"
+                          "prefix": "openwhisk",
+                          "name": "python2action",
+                          "tag": "latest"
                       },
                       "deprecated": false
                   },
@@ -274,14 +285,18 @@ objects:
                       "kind": "python:2",
                       "default": true,
                       "image": {
-                          "name": "action-python-2"
+                          "prefix": "openwhisk",
+                          "name": "python2action",
+                          "tag": "latest"
                       },
                       "deprecated": false
                   },
                   {
                       "kind": "python:3",
                       "image": {
-                          "name": "action-python-3"
+                          "prefix": "openwhisk",
+                          "name": "python3action",
+                          "tag": "latest"
                       },
                       "deprecated": false
                   }
@@ -290,14 +305,18 @@ objects:
                   {
                       "kind": "swift",
                       "image": {
-                          "name": "action-swift-3"
+                          "prefix": "openwhisk",
+                          "name": "swiftaction",
+                          "tag": "latest"
                       },
                       "deprecated": true
                   },
                   {
                       "kind": "swift:3",
                       "image": {
-                          "name": "action-swift-3"
+                          "prefix": "openwhisk",
+                          "name": "swift3action",
+                          "tag": "latest"
                       },
                       "deprecated": true
                   },
@@ -305,17 +324,30 @@ objects:
                       "kind": "swift:3.1.1",
                       "default": true,
                       "image": {
-                          "name": "action-swift-3"
+                          "prefix": "openwhisk",
+                          "name": "action-swift-v3.1.1",
+                          "tag": "latest"
                       },
                       "deprecated": false
-                  }
+                  },
+                  {
+                     "kind": "swift:4.1",
+                     "default": true,
+                     "image": {
+                         "prefix": "openwhisk",
+                         "name": "action-swift-v4.1",
+                         "tag": "latest"
+                     },
+                     "deprecated": false
               ],
               "java": [
                   {
                       "kind": "java",
                       "default": true,
                       "image": {
-                          "name": "action-java-8"
+                          "prefix": "openwhisk",
+                          "name": "java8action",
+                          "tag": "latest"
                       },
                       "deprecated": false,
                       "attached": {
@@ -332,7 +364,9 @@ objects:
                       "default": true,
                       "deprecated": false,
                       "image": {
-                          "name": "action-php-7"
+                          "prefix": "openwhisk",
+                          "name": "action-php-v7.1",
+                          "tag": "latest"
                       }
                   }
               ]
@@ -407,7 +441,7 @@ objects:
         containers:
         - name: controller
           imagePullPolicy: IfNotPresent
-          image: projectodd/controller:${OPENWHISK_VERSION}
+          image: openwhisk/controller:${OPENWHISK_VERSION}
           command: ["/bin/bash", "-c", "COMPONENT_NAME=$(hostname | cut -d'-' -f2) CONFIG_akka_remote_netty_tcp_hostname=$(hostname).controller /init.sh `hostname | cut -d'-' -f2`"]
           ports:
           - name: controller
@@ -450,7 +484,11 @@ objects:
             value: "${WHISK_KAFKA_REPLICATION_FACTOR}"
           - name: "CONFIG_whisk_kafka_topics_completed_retentionBytes"
             value: "${WHISK_KAFKA_TOPICS_COMPLETED_RETENTION_BYTES}"
-  
+          - name: "CONFIG_whisk_info_date"
+            value: "${WHISK_INFO_DATE}"
+          - name: "CONFIG_whisk_info_buildNo"
+            value: "${OPENWHISK_VERSION}"  
+
           # extra JVM arguments
           - name: "JAVA_OPTS"
             valueFrom:
@@ -608,7 +646,7 @@ objects:
       spec:
         containers:
         - name: catalog
-          image: projectodd/whisk_catalog:${PROJECTODD_VERSION}
+          image: openwhisk/whisk_catalog:${PROJECTODD_VERSION}
           env:
             - name: "WHISK_AUTH"
               valueFrom:
@@ -755,8 +793,8 @@ objects:
   metadata:
     name: invoker.config
   data:
-    docker_image_prefix: "projectodd"
-    docker_image_tag: ${PROJECTODD_VERSION}
+    docker_image_prefix: "openwhisk"
+    docker_image_tag: ${OPENWHISK_VERSION}
     docker_registry: ""
     invoker_container_dns: ""
     invoker_container_network: bridge
@@ -777,7 +815,7 @@ objects:
       export APIGW_HOST=$(curl -s --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -H "Authorization: Bearer ${TOKEN}" "https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/oapi/v1/namespaces/${NAMESPACE}/routes/openwhisk?pretty=true" | grep '"host":' | head -n 1 | awk -F '"' '{print $4}')
       export APIGW_HOST_V2=${APIGW_HOST}
       export WHISK_API_HOST_NAME=${APIGW_HOST}
-      exec /init.sh
+      exec /init.sh --id 1 --uniqueName 1
 - apiVersion: v1
   kind: ServiceAccount
   metadata:
@@ -823,7 +861,7 @@ objects:
         containers:
         - name: invoker
           imagePullPolicy: IfNotPresent
-          image: projectodd/invoker:${OPENWHISK_VERSION}
+          image: openwhisk/invoker:${OPENWHISK_VERSION}
           command: [ "/bin/bash", "-o", "allexport", "/invoker_config/init" ]
           ports:
           - name: invoker
@@ -1006,28 +1044,28 @@ objects:
         restartPolicy: Never
         initContainers:
         - name: preload-openwhisk-nodejs6
-          image: projectodd/action-nodejs-6:${PROJECTODD_VERSION}
+          image: openwhisk/nodejs6action:${OPENWHISK_VERSION}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c", "echo", "success"]
         - name: preload-openwhisk-java8
-          image: projectodd/action-java-8:${PROJECTODD_VERSION}
+          image: openwhisk/java8action:${OPENWHISK_VERSION}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c", "echo", "success"]
         - name: preload-openwhisk-python3
-          image: projectodd/action-python-3:${PROJECTODD_VERSION}
+          image: openwhisk/python3action:${OPENWHISK_VERSION}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c", "echo", "success"]
         - name: preload-openwhisk-python2
-          image: projectodd/action-python-2:${PROJECTODD_VERSION}
+          image: openwhisk/python2action:${OPENWHISK_VERSION}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c", "echo", "success"]
         - name: preload-openwhisk-php7
-          image: projectodd/action-php-7:${PROJECTODD_VERSION}
+          image: openwhisk/action-php-v7.1:${OPENWHISK_VERSION}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c", "echo", "success"]
         containers:
         - name: preload-openwhisk-nodejs8
-          image: projectodd/action-nodejs-8:${PROJECTODD_VERSION}
+          image: openwhisk/action-nodejs-v8:${OPENWHISK_VERSION}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c", "echo", "success"]
 - apiVersion: v1
@@ -1342,7 +1380,7 @@ objects:
           command: ['sh', '-cu', 'echo "$COUCHDB_SERVICE_HOST"']
         - name: install-alarms-catalog
           imagePullPolicy: IfNotPresent
-          image: projectodd/whisk_alarms:${PROJECTODD_VERSION}
+          image: openwhisk/alarmprovider:${OPENWHISK_VERSION}
           envFrom:
           - configMapRef:
               name: alarmprovider
@@ -1384,7 +1422,7 @@ objects:
             restartPolicy: Never
             containers:
             - name: refresh-activations
-              image: projectodd/whisk_alarms:${PROJECTODD_VERSION}
+              image: openwhisk/alarmprovider:${OPENWHISK_VERSION}
               command: ["/bin/bash", "-c", "/openwhisk/bin/wsk --auth $AUTH_GUEST --apihost http://controller:8080 -i activation list"]
               env:
               - name: "AUTH_GUEST"
